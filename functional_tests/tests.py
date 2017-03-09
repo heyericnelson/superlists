@@ -63,11 +63,53 @@ class NewVisitorTest(LiveServerTestCase):
         self.wait_for_row_in_list_table('2: Use peacock feathers to make a fly')
         self.wait_for_row_in_list_table('1: Buy peacock feathers')
 
-        # Edith wonders whether the site will remember her list. Then she sess that the
+        # She wonders whether the site will remember her list. Then she sees that the
         # site has generated a unique URL for her -- there is some explanatory text to
         # that effect.
-        self.fail('Finish the test!')
 
         # She visits that URL - her to-do list is still there.
 
         # Satisfied, she goes back to sleep
+
+    def test_multiple_users_can_start_lists_at_different_urls(self):
+        # User A starts a new to-do list
+        self.browser.get(self.live_server_url)
+        inputbox = self.browser.find_element_by_id('id_new_item')
+        inputbox.send_keys('Buy peacock feathers')
+        inputbox.send_keys(Keys.ENTER)
+        self.wait_for_row_in_list_table('1: Buy peacock feathers')
+
+        # She notices that her list has a unique URL
+        user_a_list_url = self.browser.current_url
+        self.assertRegex(user_a_list_url, '/lists/.+')
+
+        # Now a new User B comes to the site
+
+        ## We use a new browser session to make sure that no information
+        ## of User A is coming through from cookies, etc.
+        self.browser.quit()
+        self.browser = webdriver.Firefox()
+
+        # User B visits the home page, there is no sign of User A's list
+        self.browser.get(self.live_server_url)
+        page_text = self.browser.find_element_by_tag_name('body').text
+        self.assertNotIn('Buy peacock feathers', page_text)
+        self.assertNotIn('make a fly', page_text)
+
+        # User B starts a new list by entering a new item. He is less interesting than User A
+        inputbox = self.browser.find_element_by_id('id_new_item')
+        inputbox.send_keys('Buy milk')
+        inputbox.send_keys(Keys.ENTER)
+        self.wait_for_row_in_list_table('1: Buy milk')
+
+        # User B gets his own unique URL
+        user_b_list_url = self.browser.current_url
+        self.assertRegex(user_b_list_url, '/lists/.+')
+        self.assertNotEqual(user_b_list_url, user_a_list_url)
+
+        # Again, there is no trace of user A's list
+        page_text = self.browser.find_element_by_tag_name('body').text
+        self.assertNotIn('Buy peacock feathers', page_text)
+        self.assertIn('Buy milk', page_text)
+        
+        # Satisfied, they both go back to sleep
